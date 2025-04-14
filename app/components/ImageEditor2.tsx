@@ -132,7 +132,7 @@ const ImageEditor = ({
   useEffect(() => {
     drawImageOnCanvas(canvasBodyRef, defaultBodyImage);
     drawImageOnCanvas(canvasSkinToneRef, defaultSkitToneImage, defaultSkinTone);
-    // drawImageOnCanvas(canvasHeadBackRef, defaultHeadBackImage,defaultSkinTone);
+    drawImageOnCanvas(canvasHeadBackRef, defaultHeadBackImage,defaultSkinTone);
     drawImageOnCanvas(canvasTransparentRef, defualtTransparentBodyImage);
   }, [
     defaultBodyImage,
@@ -299,13 +299,15 @@ const ImageEditor = ({
   
     setLoading(true);
     try {
-      // Safari detection
-
-      // Force redraw canvases
-      drawImageOnCanvas(canvasBodyRef, defaultBodyImage);
-      drawImageOnCanvas(canvasSkinToneRef, defaultSkitToneImage, defaultSkinTone);
-      drawImageOnCanvas(canvasHeadBackRef, defaultHeadBackImage, defaultSkinTone);
-      drawImageOnCanvas(canvasTransparentRef, defualtTransparentBodyImage);
+      await Promise.all([
+        drawImageOnCanvas(canvasBodyRef, defaultBodyImage),
+        drawImageOnCanvas(canvasSkinToneRef, defaultSkitToneImage, defaultSkinTone),
+        drawImageOnCanvas(canvasHeadBackRef, defaultHeadBackImage, defaultSkinTone),
+        drawImageOnCanvas(canvasTransparentRef, defualtTransparentBodyImage)
+      ]);
+  
+      // Wait for next frame to allow rendering to complete
+      await new Promise((resolve) => requestAnimationFrame(resolve));
   
       const compositeCanvas = await html2canvas(containerRef.current, {
         scale: 2,
@@ -314,9 +316,9 @@ const ImageEditor = ({
         backgroundColor: null,
         imageTimeout: 30000,
       });
-      
+  
       const link = document.createElement("a");
-      link.href = compositeCanvas.toDataURL("image/png"); // Use toDataURL to get the canvas data as a string
+      link.href = compositeCanvas.toDataURL("image/png");
       link.download = "composite-image.png";
       document.body.appendChild(link);
       link.click();
