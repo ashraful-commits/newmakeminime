@@ -296,32 +296,44 @@ const ImageEditor = ({
   }, [getContainerBounds, setTransform, step]);
 
   const handleAddToCart = async (id: string, faceImage: string) => {
-    if (!containerRef.current || !faceImage) {
-      console.error("Missing required elements for image processing");
+    if (!containerRef.current || !canvasSkinToneRef.current || !canvasHeadBackRef.current) {
+      console.error("Missing required elements");
       return;
     }
-    
-    // Wait for layout
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const element = containerRef.current;
-    
-    const compositeCanvas = await html2canvas(element, {
+  
+    // Step 1: Render base container
+    const canvas = await html2canvas(containerRef.current, {
       scale: 2,
       useCORS: true,
       backgroundColor: null,
-      scrollX: 0,
-      scrollY: 0,
-      width: element.scrollWidth,
-      height: element.scrollHeight,
+      imageTimeout: 30000,
     });
-    
-    const compositeImage = compositeCanvas.toDataURL("image/png");
-    
-    // Download the image
+  
+    const ctx = canvas.getContext("2d");
+  
+    // Step 2: Capture canvasSkinToneRef and headRef separately
+    const getFilteredImage = async (element, filter) => {
+      const elCanvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: null,
+      });
+      const image = new Image();
+      image.src = elCanvas.toDataURL();
+      await new Promise((res) => (image.onload = res));
+  
+      ctx.filter = filter;
+      ctx.drawImage(image, 0, 0); // You can use custom position if needed
+    };
+  
+    // Step 3: Re-draw filtered elements manually
+    await getFilteredImage(canvasSkinToneRef.current, skinTone);
+    await getFilteredImage(canvasHeadBackRef.current, skinTone);
+  
+    // Step 4: Download
     const link = document.createElement("a");
-    link.href = compositeImage;
-    link.download = "composite-image.png";
+    link.href = canvas.toDataURL("image/png");
+    link.download = "filtered-composite.png";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
