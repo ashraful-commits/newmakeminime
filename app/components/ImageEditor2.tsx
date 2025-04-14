@@ -101,11 +101,12 @@ const ImageEditor = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Apply filter using supported method
-        if (isCanvasFilterSupported) {
+        if (!isCanvasFilterSupported) {
           canvas.style.webkitFilter = filter;
           canvas.style.filter = filter;
         }else{
-          ctx.filter = filter;}
+          ctx.filter = filter;
+        }
         const width = canvas.width;
         const height = canvas.height;
         const targetAspect = width / height;
