@@ -304,40 +304,50 @@ const ImageEditor = ({
     // Wait for layout to stabilize
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Capture the container and create a composite canvas
     const element = containerRef.current;
+    
+    // Capture the screenshot with html2canvas
     const compositeCanvas = await html2canvas(element, {
-      scale: 2,
+      scale: 2, // Adjust scale for high-resolution devices (Retina/HiDPI)
       useCORS: true,
-      backgroundColor: null,
+      backgroundColor: null, // Ensure transparent background
       scrollX: 0,
       scrollY: 0,
       width: element.scrollWidth,
       height: element.scrollHeight,
     });
     
-    // Get the 2D context of the composite canvas
+    // Apply filters to the canvas dynamically (if any)
+    const canvases = element.querySelectorAll('canvas');
     const ctx = compositeCanvas.getContext('2d');
     
-    // If your container includes canvas elements with filters, we need to reapply those filters manually
-    const canvases = element.querySelectorAll('canvas');
+    // Loop through each canvas inside the container and apply the respective filters
     canvases.forEach((canvas) => {
       const image = new Image();
-      image.src = canvas.toDataURL(); // Extract the image data from the canvas
+      image.src = canvas.toDataURL(); // Get image data from the canvas
       
       image.onload = () => {
-        // Get the canvas filter style (this could be dynamic)
-        const filter = canvas.style.filter || '';
-        
-        // Apply the filter to the composite canvas
+        const filter = canvas.style.filter || ''; // Get the filter from the canvas style
+    
+        // Apply the filter to the composite canvas before drawing
         ctx.filter = filter;
-        
-        // Draw the image onto the composite canvas at the canvas position (accounting for offset)
+    
+        // Ensure scaling for devices with higher resolution (e.g., Retina displays)
+        const scale = window.devicePixelRatio;
+    
+        // Get the bounding rect of the canvas to correctly scale and position the image
         const rect = canvas.getBoundingClientRect();
-        const scale = window.devicePixelRatio; // Ensure proper scaling
-        ctx.drawImage(image, rect.left * scale, rect.top * scale, rect.width * scale, rect.height * scale);
-        
-        // Reset the filter for other elements
+    
+        // Draw the image onto the composite canvas
+        ctx.drawImage(
+          image,
+          rect.left * scale, 
+          rect.top * scale, 
+          rect.width * scale, 
+          rect.height * scale
+        );
+    
+        // Reset the filter after applying it
         ctx.filter = 'none';
       };
     });
@@ -352,7 +362,6 @@ const ImageEditor = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
     
     // setLoading(true);
     // console.log(containerRef.current)
