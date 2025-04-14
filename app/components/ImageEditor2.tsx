@@ -301,38 +301,50 @@ const ImageEditor = ({
       return;
     }
   
-    // Step 1: Render base container
-    const canvas = await html2canvas(containerRef.current, {
-      scale: 2,
+    // Step 1: Draw base layout first
+    const baseCanvas = await html2canvas(containerRef.current, {
       useCORS: true,
+      scale: 2,
       backgroundColor: null,
-      imageTimeout: 30000,
     });
   
-    const ctx = canvas.getContext("2d");
+    const ctx = baseCanvas.getContext("2d");
   
-    // Step 2: Capture canvasSkinToneRef and headRef separately
-    const getFilteredImage = async (element, filter) => {
+    // Utility to draw a filtered element on top
+    const drawFilteredLayer = async (element, filter) => {
       const elCanvas = await html2canvas(element, {
-        scale: 2,
         useCORS: true,
+        scale: 2,
         backgroundColor: null,
       });
-      const image = new Image();
-      image.src = elCanvas.toDataURL();
-      await new Promise((res) => (image.onload = res));
   
+      const img = new Image();
+      img.src = elCanvas.toDataURL();
+      await new Promise(res => img.onload = res);
+  
+      // Get positioning (optional: fine-tune this based on layout)
+      const rect = element.getBoundingClientRect();
+      const parentRect = containerRef.current.getBoundingClientRect();
+      const x = (rect.left - parentRect.left) * 2;
+      const y = (rect.top - parentRect.top) * 2;
+      const width = rect.width * 2;
+      const height = rect.height * 2;
+  
+      // Apply the filter and draw the image
       ctx.filter = filter;
-      ctx.drawImage(image, 0, 0); // You can use custom position if needed
+      ctx.drawImage(img, x, y, width, height);
+      ctx.filter = "none";
     };
   
-    // Step 3: Re-draw filtered elements manually
-    await getFilteredImage(canvasSkinToneRef.current, skinTone);
-    await getFilteredImage(canvasHeadBackRef.current, skinTone);
+    // Step 2: Overlay skin and head filtered layers
+    const filterValue = "invert(22%) sepia(25%) saturate(1379%) hue-rotate(346deg) brightness(96%) contrast(91%)";
   
-    // Step 4: Download
+    await drawFilteredLayer(canvasSkinToneRef.current, filterValue);
+    await drawFilteredLayer(canvasHeadBackRef.current, filterValue);
+  
+
     const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
+    link.href = baseCanvas.toDataURL("image/png");
     link.download = "filtered-composite.png";
     document.body.appendChild(link);
     link.click();
