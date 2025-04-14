@@ -310,7 +310,6 @@ const ImageEditor = ({
       scale: 2,
       useCORS: true,
       backgroundColor: null,
-      foreignObjectRendering: true,
       scrollX: 0,
       scrollY: 0,
       width: element.scrollWidth,
