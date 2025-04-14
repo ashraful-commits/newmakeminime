@@ -66,7 +66,9 @@ const ImageEditor = ({
       canvas.width = 1;
       canvas.height = 1;
       const ctx = canvas.getContext("2d");
-
+      if (!ctx) {
+        throw new Error("2D context not supported");
+      }
       // Draw a red pixel
       ctx.fillStyle = "#FF0000";
       ctx.fillRect(0, 0, 1, 1);
@@ -102,9 +104,11 @@ const ImageEditor = ({
         if (isCanvasFilterSupported) {
           ctx.filter = filter;
           canvas.style.filter = "none";
+          canvas.style.webkitFilter = filter;
         } else {
           ctx.filter = "none";
           canvas.style.filter = filter;
+          canvas.style.webkitFilter = filter;
         }
 
         const width = canvas.width;
@@ -304,63 +308,13 @@ const ImageEditor = ({
     setLoading(true);
 
     try {
-      // 1. Ensure all canvases are fully rendered first
-      const redrawCanvases = async () => {
-        await Promise.all([
-          new Promise<void>((resolve) => {
-            drawImageOnCanvas(canvasBodyRef, defaultBodyImage);
-            resolve();
-          }),
-          new Promise<void>((resolve) => {
-            drawImageOnCanvas(
-              canvasSkinToneRef,
-              defaultSkitToneImage,
-              defaultSkinTone
-            );
-            resolve();
-          }),
-          new Promise<void>((resolve) => {
-            drawImageOnCanvas(
-              canvasTransparentRef,
-              defualtTransparentBodyImage
-            );
-            resolve();
-          }),
-        ]);
-      };
-
-      await redrawCanvases();
-
-      // 2. Add slight delay to ensure canvas painting completes
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // 3. Capture composite image with CORS handling
+      // Capture composite image
       const compositeCanvas = await html2canvas(containerRef.current, {
-        useCORS: true,
-        backgroundColor: "transparent",
-        logging: process.env.NODE_ENV === "development",
         scale: 2,
-        onclone: (clonedDoc) => {
-          // 4. Force canvas filter re-application in clone
-          const canvases = clonedDoc.querySelectorAll("canvas");
-          canvases.forEach((canvas) => {
-            const ctx = canvas.getContext("2d");
-            if (canvas === canvasSkinToneRef.current) {
-              ctx.filter = defaultSkinTone;
-            }
-          });
-
-          // 5. Handle CORS for images
-          const images = clonedDoc.querySelectorAll("img");
-          images.forEach((img) => {
-            img.setAttribute("crossOrigin", "anonymous");
-            if (img.complete) img.src = img.src; // Refresh cached images
-          });
-        },
+        useCORS: true,
+        logging: true,
+        backgroundColor: null,
       });
-
-      // 6. Convert to data URL with quality preservation
-      const compositeDataUrl = compositeCanvas.toDataURL("image/png", 1.0);
 
       //uuid
       const uuidgen = uuidv4();
@@ -388,7 +342,7 @@ const ImageEditor = ({
         alert("Please select a main image before proceeding to checkout.");
       }
       const [productImageUrl, faceImageUrl] = await Promise.all([
-        uploadImage(compositeDataUrl, "Composite"),
+        uploadImage(compositeCanvas.toDataURL("image/png"), "Composite"),
         uploadImage(faceImage, "Face"),
         uploadImage(mainImage, "main image"),
       ]);
@@ -532,12 +486,14 @@ const ImageEditor = ({
                 }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   if (step === 4) {
                     handleStart("move", e.clientX, e.clientY);
                   }
                 }}
                 onTouchStart={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   if (step === 4) {
                     handleStart(
                       "move",
@@ -548,6 +504,7 @@ const ImageEditor = ({
                 }}
                 onKeyDown={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   if (step === 4) {
                     if (e.key === "Enter" || e.key === " ") {
                       handleStart("move", e.clientX, e.clientY);
@@ -578,12 +535,14 @@ const ImageEditor = ({
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         if (step === 4) {
                           handleStart("move", e.clientX, e.clientY);
                         }
                       }}
                       onTouchStart={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         if (step === 4) {
                           handleStart(
                             "move",
@@ -594,6 +553,7 @@ const ImageEditor = ({
                       }}
                       onKeyDown={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         if (step === 4) {
                           if (e.key === "Enter" || e.key === " ") {
                             handleStart("move", e.clientX, e.clientY);
@@ -624,10 +584,12 @@ const ImageEditor = ({
                       className="flex items-center justify-center"
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         handleStart("rotate", e.clientX, e.clientY);
                       }}
                       onTouchStart={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         if (step === 4) {
                           handleStart(
                             "rotate",
@@ -685,16 +647,16 @@ const ImageEditor = ({
                         transition: "background-color 0.2s",
                       }}
                       onMouseDown={(e) => {
-                        e.stopPropagation(),
-                          handleStart("resize", e.clientX, e.clientY);
+                        e.stopPropagation(), e.preventDefault();
+                        handleStart("resize", e.clientX, e.clientY);
                       }}
                       onTouchStart={(e) => {
-                        e.stopPropagation(),
-                          handleStart(
-                            "resize",
-                            e.touches[0].clientX,
-                            e.touches[0].clientY
-                          );
+                        e.stopPropagation(), e.preventDefault();
+                        handleStart(
+                          "resize",
+                          e.touches[0].clientX,
+                          e.touches[0].clientY
+                        );
                       }}
                       className="flex justify-center items-center "
                       onKeyDown={(e) => {

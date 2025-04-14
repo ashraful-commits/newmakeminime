@@ -101,3 +101,12 @@ body {
     transform: translateX(-100px);
   }
 }
+
+/* Add to global CSS */
+@supports (-webkit-touch-callout: none) {
+  /* Safari specific CSS */
+  body {
+    touch-action: pan-x pan-y;
+    -webkit-user-scalable: none;
+  }
+}
