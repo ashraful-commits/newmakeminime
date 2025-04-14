@@ -311,15 +311,7 @@ const ImageEditor = ({
         imageTimeout: 30000,
         
       });
-      const ctx = compositeCanvas.getContext('2d');
-      const elementsToDraw = containerRef.current.querySelectorAll('.filter-img');
-      
-      elementsToDraw.forEach(el => {
-        // Get computed styles for the element
-        const computedStyle = getComputedStyle(el);
-        ctx.filter = computedStyle.filter; // Apply the exact filter from the original element
-        ctx.drawImage(el, el.offsetLeft, el.offsetTop);
-      });
+     
       
       //uuid
       const uuidgen = uuidv4();
