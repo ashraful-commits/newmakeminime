@@ -296,61 +296,44 @@ const ImageEditor = ({
   }, [getContainerBounds, setTransform, step]);
 
   const handleAddToCart = async (id: string, faceImage: string) => {
-    if (!containerRef.current || !faceImage) return;
-
-    setLoading(true);
+    if (!containerRef.current || !faceImage) {
+      console.error("Missing required elements:", {
+        container: containerRef.current,
+        faceImage,
+      });
+      return;
+    }
     
-    // try {
-      // Detect Safari
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      
-      // Create temporary canvas to bake filters
-      const bakeFiltersToCanvas = (originalCanvas: HTMLCanvasElement) => {
-        const tempCanvas = document.createElement('canvas');
-        const ctx = tempCanvas.getContext('2d');
-        if (!ctx) return originalCanvas;
-        
-        tempCanvas.width = originalCanvas.width;
-        tempCanvas.height = originalCanvas.height;
-        
-        // Apply original canvas filter
-        ctx.filter = originalCanvas.style.webkitFilter || originalCanvas.style.filter;
-        ctx.drawImage(originalCanvas, 0, 0);
-        
-        return tempCanvas;
-      };
-  
-      // Safari workaround configuration
-      const html2canvasOptions = {
+    try {
+      drawImageOnCanvas(canvasBodyRef, defaultBodyImage);
+      drawImageOnCanvas(canvasSkinToneRef, defaultSkitToneImage, defaultSkinTone);
+      drawImageOnCanvas(canvasTransparentRef, defualtTransparentBodyImage);
+    
+      // Let layout stabilize
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    
+      const element = containerRef.current;
+      const compositeCanvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        logging: true,
         backgroundColor: null,
-        allowTaint: true,
-        imageTimeout: 30000,
-        onclone: (clonedDoc: Document) => {
-          // Process all canvases in the cloned document
-          clonedDoc.querySelectorAll('canvas').forEach(originalCanvas => {
-            const tempCanvas = bakeFiltersToCanvas(originalCanvas);
-            originalCanvas.parentNode?.replaceChild(tempCanvas, originalCanvas);
-          });
-        }
-      };
-  
-      // Add rendering delay for Safari
-      if (isSafari) {
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-  
-      const compositeCanvas = await html2canvas(containerRef.current, html2canvasOptions);
-    // Trigger the download of the image
-    const link = document.createElement("a");
-    link.href = compositeCanvas.toDataURL("image/png");
-    link.download = "composite-image.png"; // Set the desired file name
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        scrollX: 0,
+        scrollY: 0,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+      });
+    
+      const compositeImage = compositeCanvas.toDataURL("image/png");
+    
+      const link = document.createElement("a");
+      link.href = compositeImage;
+      link.download = "composite-image.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error while generating composite image:", error);
+    }
     
     // setLoading(true);
     // console.log(containerRef.current)
