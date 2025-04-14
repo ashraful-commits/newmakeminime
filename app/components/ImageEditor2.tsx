@@ -96,7 +96,7 @@ const ImageEditor = ({
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.src = imageSrc;
-
+      console.log("reloading");
       image.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -104,14 +104,13 @@ const ImageEditor = ({
         if (!isCanvasFilterSupported) {
           canvas.style.webkitFilter = filter;
           canvas.style.filter = filter;
-        }else{
+        } else {
           ctx.filter = filter;
         }
         const width = canvas.width;
         const height = canvas.height;
         const targetAspect = width / height;
         const imgAspect = image.naturalWidth / image.naturalHeight;
-
         let drawWidth, drawHeight;
 
         if (imgAspect > targetAspect) {
@@ -296,105 +295,78 @@ const ImageEditor = ({
   }, [getContainerBounds, setTransform, step]);
 
   const handleAddToCart = async (id: string, faceImage: string) => {
-    if (!containerRef.current || !faceImage) {
-      console.error("Missing required elements:", {
-        container: containerRef.current,
-        faceImage,
-      });
-      return;
-    }
-    
+    if (!containerRef.current || !faceImage) return;
+  
+    setLoading(true);
     try {
+      // Safari detection
+
+      // Force redraw canvases
       drawImageOnCanvas(canvasBodyRef, defaultBodyImage);
       drawImageOnCanvas(canvasSkinToneRef, defaultSkitToneImage, defaultSkinTone);
+      drawImageOnCanvas(canvasHeadBackRef, defaultHeadBackImage, defaultSkinTone);
       drawImageOnCanvas(canvasTransparentRef, defualtTransparentBodyImage);
-    
-      // Let layout stabilize
-      await new Promise(resolve => requestAnimationFrame(resolve));
-    
-      const element = containerRef.current;
-      const compositeCanvas = await html2canvas(element, {
+  
+      const compositeCanvas = await html2canvas(containerRef.current, {
         scale: 2,
         useCORS: true,
+        logging: true,
         backgroundColor: null,
-        scrollX: 0,
-        scrollY: 0,
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+        imageTimeout: 30000,
       });
-    
-      const compositeImage = compositeCanvas.toDataURL("image/png");
-    
+      
       const link = document.createElement("a");
-      link.href = compositeImage;
+      link.href = compositeCanvas.toDataURL("image/png"); // Use toDataURL to get the canvas data as a string
       link.download = "composite-image.png";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      //uuid
+      // const uuidgen = uuidv4();
+      // // Prepare upload promises
+      // const uploadImage = async (imageData: string, imageType: string) => {
+      //   const response = await fetch("/api/upload", {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({ image: imageData, uuid: uuidgen }),
+      //   });
+
+      //   if (!response.ok) {
+      //     throw new Error(
+      //       `${imageType} image upload failed (${response.status})`
+      //     );
+      //   }
+
+      //   const { result }: { result: string } = await response.json();
+      //   return encodeURIComponent(result);
+      // };
+      // const mainImage =
+      //   localStorage.getItem("mainImg") || localStorage.getItem("uploadImage");
+
+      // if (!mainImage) {
+      //   alert("Please select a main image before proceeding to checkout.");
+      // }
+      // const [productImageUrl, faceImageUrl] = await Promise.all([
+      //   uploadImage(compositeCanvas.toDataURL("image/png"), "Composite"),
+      //   uploadImage(faceImage, "Face"),
+      //   uploadImage(mainImage, "main image"),
+      // ]);
+
+      // // Validate upload results
+      // if (!productImageUrl || !faceImageUrl) {
+      //   throw new Error("Image URL generation failed");
+      // }
+
+      // window.location.href = `https://makeminime.com/?add-to-cart=${id}&quantity=1&image=${productImageUrl}&faceImage=${faceImageUrl}&uuid=${uuidgen}`;
     } catch (error) {
-      console.error("Error while generating composite image:", error);
+      console.error("Checkout Error:", error);
+      // // Implement your error handling strategy here (e.g., toast notifications)
+      // window.location.href = `https://makeminime.vercel.app/product/${id}/customize?error=${encodeURIComponent(
+      //   (error as Error).message
+      // )}`;
+    } finally {
+      setLoading(false);
     }
-    
-    // setLoading(true);
-    // console.log(containerRef.current)
-    // try {
-    //   // Capture composite image
-    //   const compositeCanvas = await html2canvas(containerRef.current, {
-    //     scale: 2,
-    //     useCORS: true,
-    //     logging: true,
-    //     backgroundColor: null,
-    //     imageTimeout: 30000,
-        
-    //   });
-     
-      
-    //   //uuid
-    //   const uuidgen = uuidv4();
-    //   // Prepare upload promises
-    //   const uploadImage = async (imageData: string, imageType: string) => {
-    //     const response = await fetch("/api/upload", {
-    //       method: "POST",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({ image: imageData, uuid: uuidgen }),
-    //     });
-
-    //     if (!response.ok) {
-    //       throw new Error(
-    //         `${imageType} image upload failed (${response.status})`
-    //       );
-    //     }
-
-    //     const { result }: { result: string } = await response.json();
-    //     return encodeURIComponent(result);
-    //   };
-    //   const mainImage =
-    //     localStorage.getItem("mainImg") || localStorage.getItem("uploadImage");
-
-    //   if (!mainImage) {
-    //     alert("Please select a main image before proceeding to checkout.");
-    //   }
-    //   const [productImageUrl, faceImageUrl] = await Promise.all([
-    //     uploadImage(compositeCanvas.toDataURL("image/png"), "Composite"),
-    //     uploadImage(faceImage, "Face"),
-    //     uploadImage(mainImage, "main image"),
-    //   ]);
-
-    //   // Validate upload results
-    //   if (!productImageUrl || !faceImageUrl) {
-    //     throw new Error("Image URL generation failed");
-    //   }
-
-    //   window.location.href = `https://makeminime.com/?add-to-cart=${id}&quantity=1&image=${productImageUrl}&faceImage=${faceImageUrl}&uuid=${uuidgen}`;
-    // } catch (error) {
-    //   console.error("Checkout Error:", error);
-    //   // Implement your error handling strategy here (e.g., toast notifications)
-    //   window.location.href = `https://makeminime.vercel.app/product/${id}/customize?error=${encodeURIComponent(
-    //     (error as Error).message
-    //   )}`;
-    // } finally {
-    //   setLoading(false);
-    // }
   };
   const dynamicX = transform.x;
   const dynamicY = transform.y;
