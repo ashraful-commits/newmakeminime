@@ -296,68 +296,57 @@ const ImageEditor = ({
   }, [getContainerBounds, setTransform, step]);
 
   const handleAddToCart = async (id: string, faceImage: string) => {
-    if (!containerRef.current || !faceImage) {
-      console.error("Missing required elements for image processing");
-      return;
-    }
+    if (!containerRef.current || !faceImage) return;
+
+    setLoading(true);
     
-    // Wait for layout to stabilize
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const element = containerRef.current;
-    
-    // Capture the screenshot with html2canvas
-    const compositeCanvas = await html2canvas(element, {
-      scale: 2, // Adjust scale for high-resolution devices (Retina/HiDPI)
-      useCORS: true,
-      backgroundColor: null, // Ensure transparent background
-      scrollX: 0,
-      scrollY: 0,
-      width: element.scrollWidth,
-      height: element.scrollHeight,
-    });
-    
-    // Apply filters to the canvas dynamically (if any)
-    const canvases = element.querySelectorAll('canvas');
-    const ctx = compositeCanvas.getContext('2d');
-    
-    // Loop through each canvas inside the container and apply the respective filters
-    canvases.forEach((canvas) => {
-      const image = new Image();
-      image.src = canvas.toDataURL(); // Get image data from the canvas
+    // try {
+      // Detect Safari
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
       
-      image.onload = () => {
-        const filter = canvas.style.filter || ''; // Get the filter from the canvas style
-    
-        // Apply the filter to the composite canvas before drawing
-        ctx.filter = filter;
-    
-        // Ensure scaling for devices with higher resolution (e.g., Retina displays)
-        const scale = window.devicePixelRatio;
-    
-        // Get the bounding rect of the canvas to correctly scale and position the image
-        const rect = canvas.getBoundingClientRect();
-    
-        // Draw the image onto the composite canvas
-        ctx.drawImage(
-          image,
-          rect.left * scale, 
-          rect.top * scale, 
-          rect.width * scale, 
-          rect.height * scale
-        );
-    
-        // Reset the filter after applying it
-        ctx.filter = 'none';
+      // Create temporary canvas to bake filters
+      const bakeFiltersToCanvas = (originalCanvas: HTMLCanvasElement) => {
+        const tempCanvas = document.createElement('canvas');
+        const ctx = tempCanvas.getContext('2d');
+        if (!ctx) return originalCanvas;
+        
+        tempCanvas.width = originalCanvas.width;
+        tempCanvas.height = originalCanvas.height;
+        
+        // Apply original canvas filter
+        ctx.filter = originalCanvas.style.webkitFilter || originalCanvas.style.filter;
+        ctx.drawImage(originalCanvas, 0, 0);
+        
+        return tempCanvas;
       };
-    });
-    
-    // After composite image is ready, convert to PNG data URL
-    const compositeImage = compositeCanvas.toDataURL("image/png");
-    
+  
+      // Safari workaround configuration
+      const html2canvasOptions = {
+        scale: 2,
+        useCORS: true,
+        logging: true,
+        backgroundColor: null,
+        allowTaint: true,
+        imageTimeout: 30000,
+        onclone: (clonedDoc: Document) => {
+          // Process all canvases in the cloned document
+          clonedDoc.querySelectorAll('canvas').forEach(originalCanvas => {
+            const tempCanvas = bakeFiltersToCanvas(originalCanvas);
+            originalCanvas.parentNode?.replaceChild(tempCanvas, originalCanvas);
+          });
+        }
+      };
+  
+      // Add rendering delay for Safari
+      if (isSafari) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+  
+      const compositeCanvas = await html2canvas(containerRef.current, html2canvasOptions);
     // Trigger the download of the image
     const link = document.createElement("a");
-    link.href = compositeImage;
+    link.href = compositeCanvas.toDataURL("image/png");
     link.download = "composite-image.png"; // Set the desired file name
     document.body.appendChild(link);
     link.click();
