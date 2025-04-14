@@ -303,30 +303,24 @@ const ImageEditor = ({
 
     try {
       // Capture composite image
-      const images = containerRef.current.querySelectorAll('img');
-    await Promise.all([...images].map(img => {
-      return new Promise((resolve) => {
-        if (img.complete) resolve();
-        else img.onload = resolve;
+      const compositeCanvas = await html2canvas(containerRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: true,
+        backgroundColor: null,
+        imageTimeout: 30000,
+        
       });
-    }));
-    
-    // Introduce a small delay to ensure rendering
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Force reflow/repaint
-    containerRef.current.style.display = 'none'; // Hide temporarily
-    void containerRef.current.offsetHeight; // Trigger reflow
-    containerRef.current.style.display = '';    // Show again
-    
-    // Capture composite image
-    const compositeCanvas = await html2canvas(containerRef.current, {
-      scale: 2,
-      useCORS: true,
-      logging: true,
-      backgroundColor: null,
-      imageTimeout: 10000,
-    });
+      const ctx = compositeCanvas.getContext('2d');
+      const elementsToDraw = containerRef.current.querySelectorAll('.filter-img');
+      
+      elementsToDraw.forEach(el => {
+        // Get computed styles for the element
+        const computedStyle = getComputedStyle(el);
+        ctx.filter = computedStyle.filter; // Apply the exact filter from the original element
+        ctx.drawImage(el, el.offsetLeft, el.offsetTop);
+      });
+      
       //uuid
       const uuidgen = uuidv4();
       // Prepare upload promises
@@ -403,7 +397,7 @@ const ImageEditor = ({
             ref={canvasHeadBackRef}
             width={"557px"}
             height={"800px"}
-            className="absolute z-10 h-full"
+            className="absolute z-10 h-full filter-img"
           />
 
           {/* Face Image */}
@@ -690,7 +684,7 @@ const ImageEditor = ({
             ref={canvasSkinToneRef}
             width={"557px"}
             height={"800px"}
-            className="absolute z-1 h-full "
+            className="absolute z-1 h-full filter-img "
           />
           <canvas
             style={{ zIndex: 50 }}
