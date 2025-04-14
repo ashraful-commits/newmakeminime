@@ -296,56 +296,59 @@ const ImageEditor = ({
   }, [getContainerBounds, setTransform, step]);
 
   const handleAddToCart = async (id: string, faceImage: string) => {
-    if (!containerRef.current || !canvasSkinToneRef.current || !canvasHeadBackRef.current) {
-      console.error("Missing required elements");
+    if (!containerRef.current || !faceImage) {
+      console.error("Missing required elements for image processing");
       return;
     }
-  
-    // Step 1: Draw base layout first
-    const baseCanvas = await html2canvas(containerRef.current, {
-      useCORS: true,
+    
+    // Wait for layout to stabilize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Capture the container and create a composite canvas
+    const element = containerRef.current;
+    const compositeCanvas = await html2canvas(element, {
       scale: 2,
+      useCORS: true,
       backgroundColor: null,
+      scrollX: 0,
+      scrollY: 0,
+      width: element.scrollWidth,
+      height: element.scrollHeight,
     });
-  
-    const ctx = baseCanvas.getContext("2d");
-  
-    // Utility to draw a filtered element on top
-    const drawFilteredLayer = async (element, filter) => {
-      const elCanvas = await html2canvas(element, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null,
-      });
-  
-      const img = new Image();
-      img.src = elCanvas.toDataURL();
-      await new Promise(res => img.onload = res);
-  
-      // Get positioning (optional: fine-tune this based on layout)
-      const rect = element.getBoundingClientRect();
-      const parentRect = containerRef.current.getBoundingClientRect();
-      const x = (rect.left - parentRect.left) * 2;
-      const y = (rect.top - parentRect.top) * 2;
-      const width = rect.width * 2;
-      const height = rect.height * 2;
-  
-      // Apply the filter and draw the image
-      ctx.filter = filter;
-      ctx.drawImage(img, x, y, width, height);
-      ctx.filter = "none";
-    };
-  
-    // Step 2: Overlay skin and head filtered layers
-    const filterValue = "invert(22%) sepia(25%) saturate(1379%) hue-rotate(346deg) brightness(96%) contrast(91%)";
-  
-    await drawFilteredLayer(canvasSkinToneRef.current, filterValue);
-    await drawFilteredLayer(canvasHeadBackRef.current, filterValue);
-  
-
+    
+    // Get the 2D context of the composite canvas
+    const ctx = compositeCanvas.getContext('2d');
+    
+    // If your container includes canvas elements with filters, we need to reapply those filters manually
+    const canvases = element.querySelectorAll('canvas');
+    canvases.forEach((canvas) => {
+      const image = new Image();
+      image.src = canvas.toDataURL(); // Extract the image data from the canvas
+      
+      image.onload = () => {
+        // Get the canvas filter style (this could be dynamic)
+        const filter = canvas.style.filter || '';
+        
+        // Apply the filter to the composite canvas
+        ctx.filter = filter;
+        
+        // Draw the image onto the composite canvas at the canvas position (accounting for offset)
+        const rect = canvas.getBoundingClientRect();
+        const scale = window.devicePixelRatio; // Ensure proper scaling
+        ctx.drawImage(image, rect.left * scale, rect.top * scale, rect.width * scale, rect.height * scale);
+        
+        // Reset the filter for other elements
+        ctx.filter = 'none';
+      };
+    });
+    
+    // After composite image is ready, convert to PNG data URL
+    const compositeImage = compositeCanvas.toDataURL("image/png");
+    
+    // Trigger the download of the image
     const link = document.createElement("a");
-    link.href = baseCanvas.toDataURL("image/png");
-    link.download = "filtered-composite.png";
+    link.href = compositeImage;
+    link.download = "composite-image.png"; // Set the desired file name
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
