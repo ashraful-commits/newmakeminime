@@ -101,16 +101,10 @@ const ImageEditor = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Apply filter using supported method
-        if (isCanvasFilterSupported) {
-          ctx.filter = filter;
-          canvas.style.filter = "none";
+        if (!isCanvasFilterSupported) {
           canvas.style.webkitFilter = filter;
-        } else {
-          ctx.filter = "none";
           canvas.style.filter = filter;
-          canvas.style.webkitFilter = filter;
         }
-
         const width = canvas.width;
         const height = canvas.height;
         const targetAspect = width / height;
@@ -306,14 +300,40 @@ const ImageEditor = ({
     }
 
     setLoading(true);
-
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     try {
       // Capture composite image
       const compositeCanvas = await html2canvas(containerRef.current, {
         scale: 2,
-        useCORS: true,
-        logging: true,
-        backgroundColor: null,
+      useCORS: true,
+      logging: true,
+      backgroundColor: null,
+      // Safari-specific fixes
+      ignoreElements: (element) => element.tagName === 'CANVAS',
+      onclone: (clonedDoc) => {
+        // Force reapply filters
+        const canvases = clonedDoc.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Re-apply filter directly to canvas
+            ctx.filter = canvas.style.webkitFilter || canvas.style.filter;
+            ctx.drawImage(canvas, 0, 0);
+          }
+        });
+        
+        // Add Safari filter polyfill
+        if (isSafari) {
+          const style = document.createElement('style');
+          style.textContent = `
+            canvas {
+              -webkit-filter: ${defaultSkinTone} !important;
+              filter: ${defaultSkinTone} !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+        }
+      }
       });
 
       //uuid

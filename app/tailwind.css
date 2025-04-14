@@ -110,3 +110,14 @@ body {
     -webkit-user-scalable: none;
   }
 }
+
+@media (pointer: coarse) {
+  canvas {
+    touch-action: none;
+    -webkit-touch-callout: none;
+  }
+}
+canvas {
+  will-change: filter;
+  -webkit-backface-visibility: hidden;
+}
