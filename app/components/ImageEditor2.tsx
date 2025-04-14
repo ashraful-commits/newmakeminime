@@ -303,12 +303,47 @@ const ImageEditor = ({
 
     try {
       // Capture composite image
-      const compositeCanvas = await html2canvas(containerRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: true,
-        backgroundColor: null,
-      });
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    // Safari workaround configuration
+    const html2canvasOptions = {
+      scale: 2,
+      useCORS: true,
+      logging: true,
+      backgroundColor: null,
+      allowTaint: true,
+      imageTimeout: isIOS ? 30000 : 15000,
+      ignoreElements: (el: HTMLElement) => el.tagName === 'CANVAS',
+      onclone: async (clonedDoc: Document) => {
+        // Re-apply filters to canvas elements
+        const canvases = clonedDoc.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Safari filter workaround
+            ctx.filter = canvas.style.webkitFilter || canvas.style.filter;
+            ctx.globalCompositeOperation = 'copy';
+            ctx.drawImage(canvas, 0, 0);
+          }
+        });
+
+        // Force Safari filter rendering
+        if (isSafari) {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          clonedDoc.querySelectorAll('canvas').forEach(canvas => {
+            canvas.style.webkitFilter = canvas.style.filter;
+          });
+        }
+      }
+    };
+
+    // Add extra delay for iOS rendering
+    if (isIOS) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    const compositeCanvas = await html2canvas(containerRef.current, html2canvasOptions);
 
       //uuid
       const uuidgen = uuidv4();
