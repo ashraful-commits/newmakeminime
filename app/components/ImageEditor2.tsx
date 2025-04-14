@@ -106,6 +106,8 @@ const ImageEditor = ({
           canvas.style.filter = filter;
         } else {
           ctx.filter = filter;
+          canvas.style.webkitFilter = "none";
+          canvas.style.filter = "none";
         }
         const width = canvas.width;
         const height = canvas.height;
