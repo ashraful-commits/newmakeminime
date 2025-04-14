@@ -117,7 +117,3 @@ body {
     -webkit-touch-callout: none;
   }
 }
-canvas {
-  will-change: filter;
-  -webkit-backface-visibility: hidden;
-}
